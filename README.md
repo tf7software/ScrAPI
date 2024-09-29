@@ -1,3 +1,5 @@
+## This is a helper SERP API for [Infintium](https://infintium.xyz/)
+
 # ScrAPI
 A SERP (Search Engine Results Page) scraper - Like a free SerpAPI
 
