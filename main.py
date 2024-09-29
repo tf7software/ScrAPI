@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify
 import requests
 from bs4 import BeautifulSoup
 import time
+from urllib.parse import urlparse, urljoin
 
 app = Flask(__name__)
 
@@ -26,7 +27,7 @@ def search_google(query, num_results):
         snippet = result.select_one(".aCOpRe").text if result.select_one(".aCOpRe") else None
 
         # Fetch metadata from individual result pages
-        description, keywords = fetch_metadata(link)
+        description, keywords, favicon = fetch_metadata(link)
 
         if title and link:
             search_results.append({
@@ -34,12 +35,13 @@ def search_google(query, num_results):
                 "link": link,
                 "snippet": snippet,
                 "description": description,
-                "keywords": keywords
+                "keywords": keywords,
+                "favicon": favicon
             })
 
     return search_results[:num_results]
 
-# Function to fetch description and keywords from individual result pages
+# Function to fetch description, keywords, and favicon from individual result pages
 def fetch_metadata(link):
     headers = {
         "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/94.0.4606.61 Safari/537.36"
@@ -47,7 +49,7 @@ def fetch_metadata(link):
     try:
         page_response = requests.get(link, headers=headers)
         if page_response.status_code != 200:
-            return None, None
+            return None, None, None
 
         page_soup = BeautifulSoup(page_response.text, 'html.parser')
 
@@ -64,10 +66,19 @@ def fetch_metadata(link):
         description = description['content'] if description else None
         keywords = keywords['content'] if keywords else None
 
-        return description, keywords
+        # Fetch favicon
+        favicon = page_soup.select_one('link[rel="icon"]') or page_soup.select_one('link[rel="shortcut icon"]')
+        if favicon:
+            # If favicon URL is relative, join it with the base URL
+            favicon = favicon['href']
+            parsed_url = urlparse(link)
+            base_url = f"{parsed_url.scheme}://{parsed_url.netloc}"
+            favicon = urljoin(base_url, favicon)
+
+        return description, keywords, favicon
     except Exception as e:
         print(f"Error fetching metadata for {link}: {e}")
-        return None, None
+        return None, None, None
 
 # Function to search Google Images
 def search_google_images(query, num_results):
